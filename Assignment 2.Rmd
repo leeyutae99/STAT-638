@@ -1,0 +1,120 @@
+---
+title: 'Assignment #2'
+author: "Yutae Lee (626005947)"
+date: "2022-09-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 3.1
+
+**a)**
+
+$$P(Y_1,......,Y_100|\theta) = \theta^{\sum_{i = 1}^{100}{y_i}}({1-\theta})^{100 - \sum _ {i=1}^{100}{y_i}}$$
+$$Pr(\sum{Y_i} = y|\theta) = {100 \choose y}\theta^y(1-\theta)^{100-y}$$
+
+**b)**
+
+$$Pr(\sum{Y_i} = 57| \theta) =  {100 \choose 57}\theta^{57}(1-\theta)^{43}$$
+
+```{r}
+theta=seq(0,1,by = 0.1)
+probability = (choose(100,57)) * (theta ^ 57) * ((1-theta) ^ 43)
+probability
+plot(theta,probability,type = 'h', ylab = 'Probability')
+```
+
+
+**c)**
+
+$$P(\theta|y) =  \frac{{100 \choose 57} \theta^{57} (1-\theta)^{43}(1/11)}{p(y)} \propto \theta^{57}(1-\theta)^{43}(1/11) = c * \theta^{57}(1-\theta)^{43}(1/11) $$
+
+```{r}
+prior_probability = rep(1/11,11)
+post_probability = theta ^ 57 * (1-theta) ^ 43 * (1/11)
+post_probability = post_probability/sum(post_probability)
+post_probability
+plot(theta,post_probability, type = 'h', ylab = "Posterior Probability")
+
+```
+
+
+
+
+**d)**
+
+
+```{r}
+theta = seq(0,1,length = 200)
+prior_probability = 1
+posterior_probability = choose(100,57) * theta ^ 57 * (1-theta) ^ 43 * 1
+posterior_probability
+plot(theta,posterior_probability,type = 'l' , ylab = 'Posterior Probability')
+```
+
+
+
+**e)**
+
+
+```{r}
+theta = seq(0,1,length = 200)
+posterior_probability = dbeta(theta,58,44)
+posterior_probability
+plot(theta,posterior_probability,type = 'l', ylabs = "Posterior Probability")
+```
+
+```{r}
+theta[posterior_probability == max(posterior_probability)]
+```
+Using the beta distribution we are able to get more accuracy in estimating $\theta$. We can also see that all of the graph shows similar values  within themselves. Unlike other priors which gave us $\theta = 0.6$, in beta we can get $\theta = 0.5678392$.
+
+
+
+## Problem 3.3
+
+**a)**
+
+$x_A$ ~ $poi(\theta_A)$, $x_B$ ~ $poi(\theta_B)$
+
+$\theta_A$ ~ $\gamma(120,10)$, $\theta_B$ ~ $\gamma(12,1)$
+
+$f(\theta_A) = \frac{10^{120}}{\sqrt{120}} e ^{-10\theta_A} * \theta_A ^ {120-1}$
+$\beta(x_A) = e^{-\theta_A}\frac{\theta_A^{x_A}}{x_A!}$
+
+$Y_A = \sum_{i = 1}^{10} {{x_A}_i}$~$poi(10\theta_A)$
+$\beta(y_A) = e^{-\theta_A}\frac{(10\theta_A)^{y_A}}{y_A!}$
+
+$f(y_A,\theta_A) = \frac{10^{120}}{\sqrt{120}}e^{-10\theta_A}\theta_A^{119}*\frac{e^{-10\theta_A}*(10\theta_A)^{y_A}}{y_A!}$
+
+$f(y_A) = \int_{0}^{\inf}f(y_A,\theta_A)d\theta_A$
+
+$=\frac{10^{120}}{\sqrt{120}y_A!}* 10^{y_A}\int_{0}^{inf}e^{-20}\theta_A\theta_A^{120+y_A-1}d\theta_A$
+
+$= \frac{10^{120}10y_A}{\sqrt{120}y_A!}* \frac{\sqrt{120+y_A}}{20^{120+y_A}}$
+
+$f(\theta_A|y_A) = \frac{f(y_A*\theta_A)}{f(y_A)} = \frac{e^{-20}\theta_A\theta_A^{120y_A-1}}{\sqrt{120+y_A}/(20^{120+y_A})}$
+
+~ $\gamma(120+y_A,20)$
+
+= $\gamma(120+117,20) = \gamma(237,20)$
+
+mean = 11.85
+
+var = 0.5929
+
+95% C.I. = (10.38925,13.40545)
+
+Doing the same process for $\theta_B$ I get $\gamma(125,19)$
+
+I get mean = 8.9286
+
+Var = 0.0.6378
+
+95% C.I. = (7.432064,10.56031)
+
+
+Sorry for the unfinished work but this is all I have upto.

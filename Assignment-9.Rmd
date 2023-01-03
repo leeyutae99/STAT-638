@@ -1,0 +1,226 @@
+---
+title: 'Assignment #9'
+author: "Yutae Lee"
+date: "2022-11-17"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(cowplot)
+library(reshape)
+```
+
+## Problem 9.1
+
+
+```{r}
+swim <- read.table(url('https://www2.stat.duke.edu/courses/Fall09/sta290/datasets/Hoffdata/swim.dat'))
+
+```
+
+
+**a)**
+
+i)
+
+As mentioned in the question, for the prior of competitive times, I will set it to 23.
+
+And I am going to set the prior of the effect of the training by week as 0.
+
+Thus I am going to set $\beta = [23, 0]^T$
+
+Here I am going to run Gibbs Sampler for 10,000 times
+```{r}
+library(MASS)
+library(dplyr)
+set.seed(32)
+trains = cbind(rep(1, 6), seq(1,11, by = 2))
+# Number of Gibbs Iteration
+Iterations = 10000
+#Hyperparameters
+beta_0 = c(23, 0)
+sigma_0 = rbind(c(0.25, 0), c(0, 0.1))
+v0 = 1
+sigma2_0 = 0.25
+# predictive distribution
+predictive_distributions = apply(swim, MARGIN = 1, function(y) {
+  
+  # Store samples
+  Beta = matrix(nrow = Iterations, ncol = length(beta_0))
+  Sigma = numeric(Iterations)
+  
+  # prior values
+  beta = c(23, 0)
+  sigma_2 = 0.25
+  
+  # Gibbs sampling
+  for (i in 1:Iterations) {
+    #updating BETA
+    # compute v and m
+    v = solve(solve(sigma_0) + (t(trains) %*% trains) / sigma_2)
+    m = v %*% (solve(sigma_0) %*% beta_0 + (t(trains) %*% y) / sigma_2)
+    #sample beta <- multivariate normal(m,v)
+    beta = mvrnorm(1, m, v)
+    #Updating Sigma^2
+    # Computing SSR
+    SSR = (t(y) %*% y) - (2 * t(beta) %*% t(trains) %*% y) + (t(beta) %*% t(trains) %*% trains %*% beta)
+    # Sampling sigma_2
+    sigma_2 = 1 / rgamma(1, (v0 + dim(trains)[1]) / 2, (v0 * sigma2_0 + SSR) / 2)
+    Beta[i, ] = beta
+    Sigma[i] = sigma_2
+  }
+  
+  # posterior predictive distribution (ii) (2 weeks later)
+  x_pred = c(1, 13)
+  y_pred = rnorm(i, Beta %*% x_pred, sqrt(Sigma))
+  
+  y_pred
+})
+```
+
+Below is the plot of the posterior predictive distributions:
+
+```{r}
+df = stack(data.frame(predictive_distributions))
+ggplot(df, aes(x=values, color = ind)) +
+  geom_density()
+```
+**b)**
+```{r}
+mean(predictive_distributions[,1] < predictive_distributions[,2] & predictive_distributions[,1] < predictive_distributions[,3] & predictive_distributions[,1] < predictive_distributions[,4])
+
+mean(predictive_distributions[,2] < predictive_distributions[,1] & predictive_distributions[,2] < predictive_distributions[,3] & predictive_distributions[,2] < predictive_distributions[,4])
+
+mean(predictive_distributions[,3] < predictive_distributions[,2] & predictive_distributions[,3] < predictive_distributions[,1] & predictive_distributions[,3] < predictive_distributions[,4])
+
+mean(predictive_distributions[,4] < predictive_distributions[,2] & predictive_distributions[,4] < predictive_distributions[,3] & predictive_distributions[,4] < predictive_distributions[,1])
+```
+
+
+We can see that Swimmer 1 has 0.6508 probability of being the fastest.
+
+Swimmer 2 with 0.0188
+
+Swimmer 3 with 0.3014
+
+Swimmer 4 with 0.029
+
+
+## Problem 9.2
+
+```{r}
+azdiabetes <- read.table(url('https://www2.stat.duke.edu/courses/Fall09/sta290/datasets/Hoffdata/azdiabetes.dat'))
+header.true <- function(df) {
+  names(df) <- as.character(unlist(df[1,]))
+  df[-1,]
+}
+azdiabetes <- header.true(azdiabetes)
+azdiabetes <- azdiabetes[,1:7]
+```
+
+**a)**
+
+
+```{r}
+x <- data.matrix(subset(azdiabetes, select = -c(glu)))
+vec <- rep(1,10000)
+x <- cbind(vec,x)
+y <- data.matrix(subset(azdiabetes, select = c(glu)))
+n <- length(y[,1])
+```
+
+Let's first select our hyperparameters:
+
+
+```{r}
+g = n
+v0 = 2
+sigma2_0 = 1
+```
+
+```{r}
+library(MCMCpack)
+set.seed(32)
+SSR <- t(y) %*% (diag(n) - (g/(g+1)) * x %*% solve(t(x)%*%x)%*%t(x)) %*% y
+sigma_samples <- rinvgamma(n = 10000, shape = (v0 + n)/2, scale = (v0*sigma2_0 + SSR)/2)
+```
+
+
+```{r}
+beta_samples <- c()
+for (sig2 in sigma_samples){
+  beta_samples <- c(beta_samples, mvrnorm(n = 1, mu = (g/(g+1)) * solve(t(x)%*%x) %*% t(x)%*%y, Sigma = (g/(g+1)) * sig2 * solve(t(x)%*%x)))
+}
+```
+
+```{r}
+intercept <- c()
+npreg <- c()
+  bp <- c()
+  skin <- c()
+  bmi <- c()
+  ped <- c()
+  age <- c()
+for (i in 0:9999){
+  intercept <- c(intercept, beta_samples[1 + 7*i])
+  npreg <- c(npreg,beta_samples[2 + 7*i])
+  bp <- c(bp,beta_samples[3 + 7*i])
+  skin <- c(skin,beta_samples[4 + 7*i])
+  bmi <- c(bmi,beta_samples[5 + 7*i])
+  ped <- c(ped,beta_samples[6 + 7*i])
+  age <- c(age,beta_samples[7 + 7*i])
+}
+```
+
+95% confidence for the intercept:
+
+```{r}
+print(quantile(intercept, probs = c(0.025, 0.975)))
+```
+
+95% confidence for the npreg:
+
+```{r}
+print(quantile(npreg, probs = c(0.025, 0.975)))
+```
+95% confidence for the bp:
+
+```{r}
+print(quantile(bp, probs = c(0.025, 0.975)))
+```
+
+95% confidence for the skin:
+
+```{r}
+print(quantile(skin, probs = c(0.025, 0.975)))
+```
+
+95% confidence for the bmi:
+
+```{r}
+print(quantile(bmi, probs = c(0.025, 0.975)))
+```
+95% confidence for the ped:
+
+```{r}
+print(quantile(ped, probs = c(0.025, 0.975)))
+```
+95% confidence for the age:
+
+```{r}
+print(quantile(age, probs = c(0.025, 0.975)))
+```
+
+For $\sigma^2$:
+
+```{r}
+print(quantile(sigma_samples, probs = c(0.025, 0.975)))
+```
+
+
+**b)**
